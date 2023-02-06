@@ -67,6 +67,8 @@ import modules.talk as talk
 talk.initialize(bot, commands, user_mode)
 import modules.online_trener as online_trener
 online_trener.initialize(bot, commands, user_mode)
+import modules.team_register as team_register
+team_register.initialize(bot, commands, user_mode)
 # Посмотреть зарегистрированные функции
 for f in bot.message_handlers:
     print(f)
