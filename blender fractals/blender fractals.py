@@ -1,7 +1,8 @@
 import bpy
 from mathutils import Vector, Euler, Quaternion
 from mathutils import Quaternion as Quat
-#from math import degrees
+from random import random
+
 
 PI = 3.1415926535
 SIZE = (0.1, 0.1, 1)
@@ -30,61 +31,110 @@ def generate_segment():
     return mesh
 
 
+def generate_parent(name='group.001', sc=1):
+    '''Генерировать родителя
+    возвращает объект'''
+    bpy.ops.object.empty_add(type='PLAIN_AXES', align='WORLD')
+    parent = bpy.context.selected_objects[0]
+    parent.name = name
+    parent.empty_display_size = sc/5
+    return parent
+
+
 def new_seg(
         mesh,
         sc = 1,
-        coord = Vector((0,0,0)),
-        rot = Quat((1.0, 0.0, 0.0, 0.0)),  # Euler((0,0,0), 'XYZ'),
+        pos = Vector((0,0,0)),
+        rot = Euler((0,0,0)),
         name = 'segment.001', 
         ):
     obj = bpy.data.objects.new(name, mesh)
     bpy.context.scene.collection.objects.link(obj)
-    obj.location = coord
+    obj.location = pos
     obj.scale *= sc
-    obj.rotation_mode = 'QUATERNION'
-    obj.rotation_quaternion = rot
+    obj.rotation_euler = rot
     return obj
     
 
 def vetka(mesh,
         sc = 1,
-        coord = Vector((0,0,0)),
-        rot = Quat((1.0, 0.0, 0.0, 0.0)),  # Euler((0,0,0), 'XYZ'),
+        pos = Vector((0,0,0)),
+        rot = Euler((0,0,0)),
+        n = 0,
+        var = 0.3,
         ) -> None:
-    new_seg(mesh, sc, coord + Vector((0, 0, 0  )), rot )
-    cur_vec = Vector((0, 0, 0.9))
-    cur_vec.rotate(rot)
-    cur_vec += coord
-    new_seg(mesh, sc, cur_vec, rot )
+    if n == 0:
+        obj = new_seg(mesh, sc, pos, rot)
+        return obj
+    else:
+        parent = generate_parent('vetka.001', sc)
+        var_rad = rad( 180*(random()*var - var/2) )
+        
+        # Ствол
+        vetka (mesh, .5, n=n-1).parent = parent
+        # Верхушка
+        cur_pos = Vector((0, 0, 0.45))
+        vetka (mesh, .5, cur_pos, n=n-1 ).parent = parent
+        # 1 ветка
+        var_rad = rad( 180*(random()*var - var/2) )
+        cur_rot = Euler(( rad(30), 0, var_rad ))
+        cur_pos = Vector((0, 0, 0.25))
+        vetka (mesh, .5, cur_pos, cur_rot, n=n-1 ).parent = parent
+        # 2 ветка
+        var_rad = rad( 180*(random()*var - var/2) )
+        cur_rot = Euler(( rad(30), 0, rad(120) + var_rad ))
+        vetka (mesh, .5, cur_pos, cur_rot, n=n-1 ).parent = parent
+        # 3 ветка
+        var_rad = rad( 180*(random()*var - var/2) )
+        cur_rot = Euler(( rad(30), 0, rad(240) + var_rad))
+        vetka (mesh, .5, cur_pos, cur_rot, n=n-1 ).parent = parent
+        # применить трансформации
+        parent.scale *= sc
+        parent.location = pos
+        parent.rotation_euler = rot
+        return parent
 
-    cur_rot = rot.rotation_difference( Euler((rad(30), 0, 0), 'XYZ').to_quaternion() ).inverted()
-    new_seg(mesh, sc, cur_vec, cur_rot )
 
-    cur_rot = rot.rotation_difference( Euler((rad(30), 0, rad(120)), 'XYZ').to_quaternion() ).inverted()
-    new_seg(mesh, sc, cur_vec, cur_rot )
-
-    cur_rot = rot.rotation_difference( Euler((rad(30), 0, rad(240)), 'XYZ').to_quaternion() ).inverted()
-    new_seg(mesh, sc, cur_vec, cur_rot )
-
-
-#def fract_vetka(n, mesh, sc, coord: Vector, rot: Euler):
-#    if n == 1:
-#        vetka(segment_mesh, 1, Vector((0, 0, 0  )), Euler((0, 0, 0), 'XYZ'))
-#        vetka(segment_mesh, 1, Vector((0, 0, 0.9)), Euler((0, 0, 0), 'XYZ'))
-#        vetka(segment_mesh, 1, Vector((0, 0, 0.9)), Euler((rad(-30), 0, 0       ), 'XYZ'))
-#        vetka(segment_mesh, 1, Vector((0, 0, 0.9)), Euler((rad(-30), 0, rad(120)), 'XYZ'))
-#        vetka(segment_mesh, 1, Vector((0, 0, 0.9)), Euler((rad(-30), 0, rad(240)), 'XYZ'))
-#    else:
-#        fract_vetka(n-1)
-
+def elka(mesh,
+        sc = 1,
+        pos = Vector((0,0,0)),
+        rot = Euler((0,0,0)),
+        n = 0,
+        var = 0.3,
+        ) -> None:
+    parent = generate_parent('tree.001', sc)
+    var_rad = rad( 180*(random()*var - var/2) )
+    # Ствол
+    for i in range(n+1):
+        new_seg(mesh, 1/(n+1), Vector((0, 0, (1/(n+1))*i )) ).parent = parent
+    
+    # 1 ветка
+    var_rad = rad( 180*(random()*var - var/2) )
+    cur_rot = Euler(( rad(150), 0, var_rad ))
+    cur_pos = Vector((0, 0, 0.85))
+    vetka (mesh, 1, cur_pos, cur_rot, n=n ).parent = parent
+    # 2 ветка
+    var_rad = rad( 180*(random()*var - var/2) )
+    cur_rot = Euler(( rad(150), 0,rad(120) + var_rad ))
+    vetka (mesh, 1, cur_pos, cur_rot, n=n ).parent = parent
+    # 3 ветка
+    var_rad = rad( 180*(random()*var - var/2) )
+    cur_rot = Euler(( rad(150), 0,rad(240) + var_rad))
+    vetka (mesh, 1, cur_pos, cur_rot, n=n ).parent = parent
+    parent.scale *= sc
+    parent.location = pos
+    parent.rotation_euler = rot
+    return parent
+    
 
 clear_scene()
 segment_mesh = generate_segment()
-vetka(segment_mesh, 1, Vector((-1, 1, 0  )), Euler((rad(0), rad(45), 0), 'XYZ').to_quaternion() )
-#vetka(segment_mesh)
-
-#v0 = Vector((0,0,0))
-#v1 = Vector((-1, -1, -1))
-#v1.normalize()
-#rot = v1.rotation_difference(v0).to_euler()
-#obj.rotation_euler = rot
+ 
+n = 4
+h = -n*0.86
+r = 0
+for i in range(n):
+    elka(segment_mesh, n = n-i,
+        pos = Vector((0, 0, h:=h+(n-i+1)*.65 )),
+        rot = Euler((0, 0, rad(r:=r+30) )),
+        sc = n-i )
