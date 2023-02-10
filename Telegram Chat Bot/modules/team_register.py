@@ -60,7 +60,7 @@ def reset_steps(cid):
 def get_teem_name(message):
     '''1. Ввести название команды.
     Запрашивает название команды и возвращает строку'''
-    user_answers[message.chat.id] = {'name': message.text}
+    user_answers[message.chat.id] = {'team_name': message.text}
     next_step_question(message.chat.id)
 
 def get_count_students(message):
@@ -76,19 +76,28 @@ def get_count_students(message):
         next_step_question(message.chat.id)
     else:
         user_answers[message.chat.id]['teem_count'] = teem_count
+        next_step_question(message.chat.id)
 
 
-def get_names(n: int) -> str:
+def get_names(message) -> str:
     '''Запрашивает имена участников
     Формирует из первых букв логин и возвращает
     логин -> строка
     '''
-    login = ''
-    for i in range(n):
-        name = input('Введите название участника: ')
-        login += name.lower()[0]
-    print('Ваш логин:', login)
-    return login
+    cid = message.chat.id
+    n = user_answers[cid]['teem_count'] # количество участников
+    if not user_answers[cid].get('name_student', False):
+        user_answers[cid]['name_student'] = []
+    user_answers[cid]['name_student'].append(message.text)
+    if len(user_answers[cid]['name_student']) < n:
+        user_step[message.chat.id] -= 1
+        next_step_question(cid)
+    else:
+        login = ''
+        for name in user_answers[cid]['name_student']:
+            login += name.lower()[0]
+        bot.send_message(cid, 'Ваш логин: ' + login)
+        next_step_question(cid)
 
 
 def get_pass_teem():
