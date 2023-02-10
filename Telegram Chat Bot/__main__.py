@@ -35,7 +35,7 @@ def start(m):
     if cid not in users:   # Если пользователь ещё не известен:
         users.append(cid)  # Сохраним его user id
         bot.send_message(cid, f"Здравия желаю, {m.from_user.first_name}! Приятно познакомиться.\n"+
-                                'Я телебот написанный на пайтон. Меня научил общаться студент курса Пайтон старт Евгений, за что уему огромное спасибо.',
+                                'Я телебот написанный на пайтон.',
                                 reply_markup=hide_keyoard)
         command_help(m)         # Показать справку
     else:
@@ -69,6 +69,7 @@ import modules.online_trener as online_trener
 online_trener.initialize(bot, commands, user_mode)
 import modules.team_register as team_register
 team_register.initialize(bot, commands, user_mode)
+
 # Посмотреть зарегистрированные функции
 for f in bot.message_handlers:
     print(f)
