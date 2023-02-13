@@ -3,7 +3,7 @@ MODULE_COMMAND = 'team_register'
 MODULE_DESC = 'Регистрация команды студентов'
 MODULE_HI = 'Вы вошли в режим: регистрация команды студентов'
 
-
+'''ddwdwddw'''
 def initialize(outer_bot, commands, outer_user_mode):
     global user_mode
     global bot
