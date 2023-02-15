@@ -34,13 +34,13 @@ hide_keyoard = types.ReplyKeyboardRemove()
 def start(m):
     cid = m.chat.id
     if cid not in Botuser.get_all_id() :   # Если пользователь ещё не известен:
-        Botuser(cid)                # Создаём нового пользователя и запиcываем его объект в Botuser.all_users
+        Botuser(cid).append_user()         # Создаём нового пользователя, его объект будет храниться в классе
         bot.send_message(cid, f"Здравия желаю, {m.from_user.first_name}! Приятно познакомиться.\n"+
                                 'Я телебот написанный на пайтон.',
                                 reply_markup=hide_keyoard)
         command_help(m)         # Показать справку
     else:
-        Botuser.get_user(cid).reset_mode()
+        botuser(cid).reset_mode()
         bot.send_message(cid, "Здравия желаю! Мы уже знакомы.", reply_markup=hide_keyoard)
 
 
@@ -56,7 +56,7 @@ def command_help(m):
 
 # Обработка всех остальных сообщений без режима
 @bot.message_handler(content_types=["text"], 
-                    func=lambda m: not m.text.startswith('/') and not Botuser.get_user(m.chat.id).mode)
+                    func=lambda m: not m.text.startswith('/') and not botuser(m.chat.id).get_mode())
 def no_mode_answer(m):
     cid = m.chat.id
     bot.send_message(cid, 'Прежде чем начать, нужно выбрать режим:')
@@ -66,8 +66,10 @@ def no_mode_answer(m):
 # Подгружаем режимы работы бота
 # import modules.talk as talk
 # talk.initialize(bot, commands, user_mode)
-# import modules.online_trener as online_trener
-# online_trener.initialize(bot, commands, user_mode)
+
+import modules.online_trener as online_trener
+# Если все переменные хранит объект bot, то кроме него нам ничего передавать не нужно
+online_trener.initialize(bot)
 
 # Посмотреть зарегистрированные функции
 # for f in bot.message_handlers:
