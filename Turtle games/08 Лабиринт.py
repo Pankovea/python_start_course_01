@@ -1,8 +1,9 @@
 import turtle
 from turtle import Turtle, done, bye
 from random import randint
-import time
+from time import time
 from tkinter import Button
+from abc import ABC, abstractmethod
 
 # Для моментального обновления экрана
 turtle.hideturtle()
@@ -21,7 +22,7 @@ turtle.register_shape('dog', dog_shape)
   
 
 
-class Sprite(Turtle):
+class Sprite(ABC, Turtle):
   'Общий класс объекта в игре'
   SIZE = 1
   COLLIDE_DIST = 18
@@ -30,7 +31,9 @@ class Sprite(Turtle):
   SPD = 150 # Скорость перемещения пикс в секунду
   step = SPD / calc_fps
   update_every_n_frame = 1
-  
+  frame = 0
+  time_ = time()
+
   def __init__(self, x=0, y=0):
     super().__init__()
     self.speed(0)
@@ -63,10 +66,11 @@ class Sprite(Turtle):
     if self.is_collide(other):
         self.act(other)
         other.act(self)
-
+  
+  @abstractmethod
   def act(self, other):
     'Дествие спрайта на другой спрайт'
-    pass  # В базовом классе нет дейтсвия
+    pass
 
 
 class Wall(Sprite):
@@ -228,8 +232,6 @@ class Coin(Sprite):
 
 
 class MoveableSprite(Sprite):
-  DIAG_MUL = 0.707
-
   def __init__(self, x=0, y=0):
     super().__init__(x, y)
     self.dx = 0
@@ -251,33 +253,34 @@ class Player(MoveableSprite):
     self.shape('turtle')
     self.color('green')
     self.points = 0
-
+    self.animate = False
+    self.reaction = ''
   
   def press_right(self):
     if self.dy:
-      self.dx = super().step * super().DIAG_MUL
-      if self.dy == super().step: self.dy *= super().DIAG_MUL
+      self.dx = super().step * 0.707
+      if self.dy == super().step: self.dy *= 0.707
     else:
       self.dx = super().step
 
   def press_left(self):
     if self.dy:
-      self.dx = -super().step * super().DIAG_MUL
-      if self.dy == super().step: self.dy *= super().DIAG_MUL
+      self.dx = -super().step * 0.707
+      if self.dy == super().step: self.dy *= 0.707
     else:
       self.dx = -super().step
 
   def press_up(self):
     if self.dx:
-      self.dy = super().step * super().DIAG_MUL
-      if self.dx == super().step: self.dx *= super().DIAG_MUL
+      self.dy = super().step * 0.707
+      if self.dx == super().step: self.dx *= 0.707
     else:
       self.dy = super().step
   
   def press_down(self):
     if self.dx:
-      self.dy = -super().step * super().DIAG_MUL
-      if self.dx == super().step: self.dx *= super().DIAG_MUL
+      self.dy = -super().step * 0.707
+      if self.dx == super().step: self.dx *= 0.707
     else:
       self.dy = -super().step
 
@@ -285,6 +288,34 @@ class Player(MoveableSprite):
   def release_left(self):  self.dx = 0
   def release_up(self):    self.dy = 0
   def release_down(self):  self.dy = 0
+
+
+  def make_step(self):
+    super().make_step()
+    if self.animate and self.animate > self.time_:
+      if self.reaction == 'random':
+        col = (
+          '#' + 
+          str(hex(randint(50, 180)))[-2:] + 
+          str(hex(randint(50, 180)))[-2:] + 
+          str(hex(randint(50, 180)))[-2:]
+        ) # случайный цвет 
+        self.color(col)
+      elif self.reaction:
+        self.color(self.reaction)
+    else:
+      self.animate = False
+      self.reaction = ''
+      self.color('green')
+
+  
+  def act(self, other):
+    if not self.animate:
+      self.animate = super().time_ + 1
+      if isinstance(other, Dog):
+        self.reaction = 'red'
+      elif isinstance(other, Coin):
+        self.reaction = 'random'
 
 
 class Dog(MoveableSprite):
@@ -306,8 +337,8 @@ class Dog(MoveableSprite):
     if randint(0,100) < 10:
       self.dy = randint(-1,1) * st
     if self.dx and self.dy: 
-      self.dx *= super().DIAG_MUL
-      self.dy *= super().DIAG_MUL
+      self.dx *= 0.707
+      self.dy *= 0.707
     super().make_step()
 
 
@@ -356,7 +387,7 @@ class Tablo(Turtle):
 
 
 class Level():
-  frame = 0
+  start_time = time()
   'Класс уровня'
   def __init__(self, level: list[str], sprites: dict) -> None:
     self.all_sprites: list[Sprite] = []
@@ -374,9 +405,9 @@ class Level():
         if CurSpriteClass:
           spr = CurSpriteClass((x - len(row)/2)   * 20 * Sprite.SIZE,
                                (-y + len(level)/2) * 20 * Sprite.SIZE)
-          self.all_sprites.append(spr)
           if   char == 'p': self.player = spr
-          elif char == '@': self.dogs.append(spr)
+          else: self.all_sprites.append(spr)
+          if   char == '@': self.dogs.append(spr)
           elif char == '*': self.coins.append(spr)
           elif char in ['#', '\\', '/']: self.walls.append(spr)
           elif char == '>': self.doors.append(spr)
@@ -409,10 +440,11 @@ class Level():
           
 
   def start(self):
-    Level.time = time.time()
+    Level.start_time = time()
     while Coin.num_coins > 0 and self.player and self.player.points >= 0:
-      Level.frame += 1
-      frame_start_time = time.time()
+      Sprite.time_ = time()
+      Sprite.frame += 1
+      frame_start_time = time()
       self.player.make_step()
       self.player.interact_list(self.all_sprites)
 
@@ -440,7 +472,7 @@ class Level():
               door.check_opened()
 
       
-      info =  f'Время: {round(time.time() - self.time)}'
+      info =  f'Время: {round(time() - Level.start_time)}'
       info += f'\nОчки: {self.player.points}'
       info += f'\nДвери: {int(round(Door.time_open,0))}' if Door.is_open else ''
       self.tablo.show_lines(info)
@@ -448,7 +480,7 @@ class Level():
       info  = f'update fps: {int(round(Sprite.fps))}'
       info += f'\ncalc fps: {int(round(Sprite.calc_fps))}'
       info += f'\nskip frames: {Sprite.update_every_n_frame - 1}'
-      info += f'\ncalc frames: {int(round(Level.frame))}'
+      info += f'\ncalc frames: {int(round(Sprite.frame))}'
       self.game_info.show_lines(info)
 
       # Просчёт объектов завершён, осталось обновить экран
@@ -456,11 +488,11 @@ class Level():
       # Если в сумме FPS получится меньше 30, то рассчитаем сколько
       # кадров надо пропустить на обновление. Но просчёт всё равно производить
       # чтобы не перескакивать через стены.
-      frame_calc_time = time.time() - frame_start_time
-      if Level.frame % Sprite.update_every_n_frame == 0:
+      frame_calc_time = time() - frame_start_time
+      if Sprite.frame % Sprite.update_every_n_frame == 0:
         # Обновлять каждый update_every_n_frame кадр и пересчитывать fps
         turtle.update()
-        frame_total_time = time.time() - frame_start_time
+        frame_total_time = time() - frame_start_time
         Sprite.fps = 1 / frame_total_time
         if 1 < Sprite.fps < 30 :
           Sprite.update_every_n_frame = int(30 // Sprite.fps)
@@ -482,8 +514,8 @@ class Level():
     Coin.num_coins = 0
     Door.is_open = False
     Door.time_open = 15
-    Level.frame = 0
-    Level.update_every_n_frame = 1
+    Sprite.frame = 0
+    Sprite.update_every_n_frame = 1
     self.player = None
     self.coins.clear()
     self.dogs.clear()
