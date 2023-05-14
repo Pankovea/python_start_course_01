@@ -1,83 +1,92 @@
-from users import *
+from users import botuser
+from modules.handlers import BotHandlers
 
 # Функция добавления режима
 MODULE_COMMAND = 'online_trener'
 MODULE_HI = 'Вы вошли в режим: Онлайн тренер'
 
 
+bh = BotHandlers()
 def initialize(outer_bot):
+    global bh
     global bot
-    global steps
     bot = outer_bot
     bot.commands[MODULE_COMMAND] = 'Онлайн тренер'
-    bot.register_message_handler(callback=module_start_command, commands=[MODULE_COMMAND])
-    steps = {
-        'Введите ваше имя:': input_name,
-        'Ваш возраст:': input_age,
-        'Вес (кг):': input_weight,
-        'Рост (см):': input_height,
-        'Ваш желаемый вес': input_new_weight,
-        # 'Ответ': desired_result,
-        }
-    # Зарегистрировать функции-обработчики для всех шагов
-    for i, _ in enumerate(steps):
-        eval(f'''bot.register_message_handler(callback=get_user_step_func({i}), content_types=["text"],
-                    func=lambda m: botuser(m.chat.id).get_mode() == MODULE_COMMAND
-                               and botuser(m.chat.id).get_step() == {i})''')
-
-
-def get_user_step_text(cid): 
-    step = botuser(cid).get_step()
-    text = list(steps.keys())[step]
-    return text
-
-def get_user_step_func(step): 
-    key = list(steps.keys())[step]
-    return steps[key]
-
-def next_step_question(cid):
-    botuser(cid).next_step()
-    bot.send_message(cid, get_user_step_text(cid))
+    bh.add_handlers(bot)
+    del bh
+    
 
 
 # Функция, обрабатывающая команду /MODULE_COMMAND
+@bh.message_handler(commands=[MODULE_COMMAND],
+                    func= lambda m: botuser(m.chat.id))
 def module_start_command(m):
     cid = m.chat.id
-    botuser(cid).set_mode(MODULE_COMMAND)
-    bot.send_message(cid, MODULE_HI + '\n\n' + get_user_step_text(cid))
+    # т.к. методы класса воздвращают объект класса, то можем объединять методы в цепочку
+    user = botuser(cid).set_mode(MODULE_COMMAND).set_steps([
+        'Введите ваше имя:',
+        'Ваш возраст:',
+        'Вес (кг):',
+        'Рост (см):',
+        'Ваш желаемый вес',
+    ])
+    bot.send_message(cid, MODULE_HI + '\n\n' + user.get_step_text()) # Введите ваше имя:
 
 
+
+@bh.message_handler(content_types=["text"],
+                    func=lambda m: (user:=botuser(m.chat.id))
+                        and user.get_mode() == MODULE_COMMAND
+                        and user.get_step() == 0)
 def input_name(m):
     cid = m.chat.id
     # т.к. методы класса воздвращают объект класса, то можем объединять методы в цепочку
-    botuser(cid).set_answer('name', m.text).next_step()
-    bot.send_message(cid, get_user_step_text(cid))
-    
+    user = botuser(cid).set_answer('name', m.text)
+    bot.send_message(cid, user.next_step().get_step_text()) # Ваш возраст:
+
+
+
+def int_(s):
+    return int(s) if s.isnumeric() else 0
+
+
+@bh.message_handler(content_types=["text"],
+                    func=lambda m: (user:=botuser(m.chat.id))
+                        and user.get_mode() == MODULE_COMMAND
+                        and user.get_step() == 1)
 def input_age(m):
     cid = m.chat.id
-    user = botuser(cid)
-    age = int2(m.text)
-    user.set_answer('age', age)
+    age = int_(m.text)
+    user = botuser(cid).set_answer('age', age)
     reg(cid, user.get_answer('name'), age)
-    next_step_question(cid)
+    bot.send_message(cid, botuser(cid).next_step().get_step_text()) # Вес (кг):
+
 
 def reg(cid, name, age):
     msg = f"Пользователь {name} c возрастом {age} зарегистрирован!"
     bot.send_message(cid, msg)
 
-def int2(s):
-    return int(s) if s.isnumeric() else 0
 
+
+@bh.message_handler(content_types=["text"],
+                    func=lambda m: (user:=botuser(m.chat.id))
+                        and user.get_mode() == MODULE_COMMAND
+                        and user.get_step() == 2)
 def input_weight(m):
     cid = m.chat.id
-    botuser(cid).set_answer('weight', int2(m.text))
-    next_step_question(cid)
+    user = botuser(cid).set_answer('weight', int_(m.text))
+    bot.send_message(cid, user.next_step().get_step_text()) # Рост (см):
 
+
+
+@bh.message_handler(content_types=["text"],
+                    func=lambda m: (user:=botuser(m.chat.id))
+                        and user.get_mode() == MODULE_COMMAND
+                        and user.get_step() == 3)
 def input_height(m):
     cid = m.chat.id
-    height = int2(m.text) / 100
-    user = botuser(cid)
-    user.set_answer('height', height)
+    height = int_(m.text) / 100
+    user = botuser(cid).set_answer('height', height)
     if user.get_answer('age') < 18:
         imt_child(cid, user.get_answer('weight'), height)
     else:
@@ -98,8 +107,7 @@ def imt_child(cid, weight, height):
     elif user.imt > 22:
         bot.send_message(cid, "Лишний вес")
         imt = 1
-    bot.send_message(cid, get_user_step_text(cid))
-    next_step_question(cid) # Ваш желаемый вес:
+    bot.send_message(cid, user.next_step().get_step_text()) # Ваш желаемый вес:
 
 
 def imt_v(cid, weight, height):
@@ -115,14 +123,19 @@ def imt_v(cid, weight, height):
     elif user.imt > 25:
         bot.send_message(cid, "У Вас лишний вес")
         user.imt = 1
-    next_step_question(cid) # Ваш желаемый вес:
+    bot.send_message(cid, user.next_step().get_step_text()) # Ваш желаемый вес:
 
 
+
+@bh.message_handler(content_types=["text"],
+                    func=lambda m: (user:=botuser(m.chat.id))
+                        and user.get_mode() == MODULE_COMMAND
+                        and user.get_step() == 4)
 def input_new_weight(m):
     cid = m.chat.id
     user = botuser(cid)
-    new_weight = int2(m.text)
-    botuser(cid).set_answer('new_weight', int2(m.text))
+    new_weight = int_(m.text)
+    botuser(cid).set_answer('new_weight', int_(m.text))
     desired_result(cid, user.imt, new_weight, user.get_answer('weight'))
 
 
@@ -133,7 +146,6 @@ def desired_result(cid, imt, result, weight):
         bot.send_message(cid, "Похудеем на " + str(weight - result) + " кг")
     else:
         bot.send_message(cid, "Рекомендую программу для улучшения тела с небольшим изменением веса")
-    msg = 'Программа завершена.\nВаши ответы:\n' + botuser(cid).get_answers_str()
-    bot.send_message(cid, msg)
+    bot.send_message(cid, 'Программа завершена. /help\nВаши ответы:\n' + botuser(cid).get_answers_str())
     botuser(cid).reset_mode()
 

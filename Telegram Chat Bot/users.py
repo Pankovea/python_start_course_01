@@ -8,25 +8,33 @@ def botuser(cid: int):
 # Создадим класс для пользователей, где будем хранить всё необходимое
 class Botuser:  # Название класса пишем с большой буквы
 
-    __all_users = [] # Эта переменная принадлежит всему классу объектов.
+    __all_users = set() # Эта переменная принадлежит всему классу объектов.
                 # к ней будем обращаться не через объект, а через класс: Botuser.get_all_id()
 
     def __init__(self, chat_id: int, user_mode: str = ''): # функция запускается при создании экзепляра класса
         self.__id = chat_id            # назначаем переменные создаваемого объекта
         self.__mode = user_mode
         self.__step = 0         # Просто инициируем, назначаем начальное значение переменным
+        self.__steps = []       # Здесь храним текст шагов
         self.__answers = {}     # __ перед переменной охначет, что переменную нельзя изменить напрямую 
                                 # только через функции 
+        Botuser.__all_users.add(self)   # Если пользователь новый, то добавим в множество
 
-
-    def append_user(self):
-        if not self in Botuser.__all_users:
-            Botuser.__all_users.append(self)
-        return self
 
     def get_step(self):
         'Возвращает текущий шаг пользователя'
         return self.__step
+
+
+    def set_steps(self, steps):
+        'Сохраняет шаги'
+        self.__steps = steps
+        return self
+
+    def get_step_text(self):
+        'Возвращает текст текущего шага пользователя'
+        if len(self.__steps) > self.__step:
+            return self.__steps[self.__step]
 
     def next_step(self):
         'Переходит на следующий шаг'
@@ -70,8 +78,8 @@ class Botuser:  # Название класса пишем с большой б�
     def get_answers_str(self):
         'Возвращает строку с шагами и ответами'
         s = ''
-        for step, a in self.__answers.items():
-            s += f'{step}: {a}\n'
+        for step, ans in self.__answers.items():
+            s += f'{step}: {ans}\n'
         return s
 
     def get_mode(self):
@@ -81,20 +89,26 @@ class Botuser:  # Название класса пишем с большой б�
         'Установить режим'
         self.__mode = mode
         self.__step = 0
+        self.__steps = []
         self.__answers = {}
         return self
 
     def reset_mode(self):
         'Сбросить режим'
+        self.reset_step()
+        self.steps = []
         self.set_mode('')
         return self
 
     # следующие функции предназначены для вызова через класс Botuser
-    def get_all_id(self = None):
+    @classmethod
+    def get_all_id(cls):
         'Возвращает список всех id пользователей'
-        return [user.__id for user in Botuser.__all_users]
+        return [user.__id for user in cls.__all_users]
 
-    def getme(cid: int):
+    @classmethod
+    def getme(cls, cid: int):
         'Возвращает объект Botuser по его chat_id'
-        i = Botuser.get_all_id().index(cid)
-        return Botuser.__all_users[i]
+        for user in cls.__all_users:
+            if user.__id == cid:
+                return user
