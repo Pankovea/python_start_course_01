@@ -56,9 +56,17 @@ def command_help(m):
         bot.send_message(cid, help_text, reply_markup=hide_keyoard)
 
 
-# Обработка всех остальных сообщений без режима
+# Обработка всех сообщений без /start
 @bot.message_handler(content_types=["text"], 
-                    func=lambda m: not m.text.startswith('/') and not botuser(m.chat.id).get_mode())
+                    func=lambda m: not botuser(m.chat.id))
+def no_start_answer(m):
+    cid = m.chat.id
+    bot.send_message(cid, 'Чтобы пользоваться ботом, нужно начать /start', reply_markup=hide_keyoard)
+
+# Обработка всех сообщений без режима
+@bot.message_handler(content_types=["text"], 
+                    func=lambda m: not m.text.startswith('/')
+                    and (user:=botuser(m.chat.id)) and not user.get_mode())
 def no_mode_answer(m):
     cid = m.chat.id
     bot.send_message(cid, 'Прежде чем начать, нужно выбрать режим:')
@@ -67,11 +75,14 @@ def no_mode_answer(m):
 
 # Подгружаем режимы работы бота
 import modules.talk as talk
+# Если все переменные хранит объект bot, то кроме него нам ничего передавать не нужно
 talk.initialize(bot)
 
 import modules.online_trener as online_trener
-# Если все переменные хранит объект bot, то кроме него нам ничего передавать не нужно
 online_trener.initialize(bot)
+
+import modules.team_register as team_register
+team_register.initialize(bot)
 
 # Посмотреть зарегистрированные функции
 # for f in bot.message_handlers:
